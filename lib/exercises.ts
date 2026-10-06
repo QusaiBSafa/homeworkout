@@ -103,6 +103,7 @@ export const EXERCISES: Exercise[] = [
     mistakes: ["Leaning backward as the knee lifts", "Holding your breath"],
     harder: "Speed up into High Knees.",
     motion: {
+      continuous: true,
       anchor: "hip",
       frames: [
         kf(p({ torso: 178, thR: 70, shR: 0, ftR: 80, uaR: -30, faR: 40, uaL: 35, faL: 120 }), 450, 80),
@@ -128,6 +129,7 @@ export const EXERCISES: Exercise[] = [
     cues: ["Keep ribs down, don't arch your back", "Reach long through the fingertips"],
     mistakes: ["Shrugging the shoulders up to the ears", "Rushing the circles"],
     motion: {
+      continuous: true,
       anchor: "footR",
       frames: [
         kf(p({ uaR: 0, faR: 0, uaL: 0, faL: 0 }), 550),
@@ -617,12 +619,13 @@ export const EXERCISES: Exercise[] = [
     mistakes: ["Landing flat-footed and stiff-legged"],
     easier: "Step one foot out at a time instead of jumping.",
     motion: {
+      continuous: true,
       view: "front",
       anchor: "hip",
       frames: [
         kf({ torso: 180, uaR: -6, faR: -3, uaL: 6, faL: 3, thR: -2, shR: 0, thL: 2, shL: 0 }, 220),
         kf({ torso: 180, uaR: -80, faR: -90, uaL: 80, faL: 90, thR: -10, shR: -8, thL: 10, shL: 8, lift: 9 }, 220),
-        kf({ torso: 180, uaR: -155, faR: -168, uaL: 155, faL: 168, thR: -17, shR: -14, thL: 17, shL: 14 }, 220),
+        kf({ torso: 180, uaR: -158, faR: -170, uaL: 158, faL: 170, thR: -17, shR: -14, thL: 17, shL: 14 }, 220),
         kf({ torso: 180, uaR: -80, faR: -90, uaL: 80, faL: 90, thR: -10, shR: -8, thL: 10, shL: 8, lift: 9 }, 220),
       ],
     },
@@ -646,6 +649,7 @@ export const EXERCISES: Exercise[] = [
     mistakes: ["Landing heavily on the heels"],
     easier: "March in Place with high knees.",
     motion: {
+      continuous: true,
       anchor: "hip",
       frames: [
         kf(p({ torso: 174, thR: 92, shR: 0, ftR: 70, thL: -4, shL: -8, uaR: -40, faR: 30, uaL: 45, faL: 140, lift: 3 }), 230),
@@ -672,6 +676,7 @@ export const EXERCISES: Exercise[] = [
     mistakes: ["Hips bouncing up and down", "Hands drifting forward"],
     easier: "Step the knees in slowly, one at a time.",
     motion: {
+      continuous: true,
       anchor: "handR",
       anchorX: 140,
       frames: [

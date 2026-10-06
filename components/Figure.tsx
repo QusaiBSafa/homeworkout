@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { GROUND, L, Motion, poseAt, Pose, Pt, Skeleton, solve } from "@/lib/figure";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { GROUND, handsBearWeight, L, Motion, poseAt, Pose, Pt, Skeleton, solve } from "@/lib/figure";
+import { buildBody, clampAboveFloor, Gender, ponytailRest } from "@/lib/body";
 
-export type Gender = "male" | "female";
-
-const PALETTE = {
-  male: { skin: "#e3a77f", hair: "#26232b", top: "#4f8cff", topDark: "#3a6fd8", bottom: "#3b4658", shoe: "#f4f6fb", sole: "#b8f34a" },
-  female: { skin: "#f0bf98", hair: "#6b3d26", top: "#ff6b8b", topDark: "#e24f73", bottom: "#7b6cff", shoe: "#f4f6fb", sole: "#ff6b8b" },
-};
+export type { Gender };
 
 const REDUCED = "(prefers-reduced-motion: reduce)";
 function subscribeReducedMotion(cb: () => void) {
@@ -28,11 +24,32 @@ type Props = {
   frame?: number;
 };
 
+/** Forearms and head trail the upper body slightly, the way real limbs follow through. */
+const FOREARM_LAG = 70;
+const HEAD_LAG = 45;
+
+function livePose(motion: Motion, t: number, lagArms: boolean): Pose {
+  const pose = poseAt(motion, t);
+  if (!lagArms) return pose;
+  const head = poseAt(motion, t - HEAD_LAG);
+  // Seen from the front, lagging forearms read as flapping elbows on straight-arm sweeps.
+  const lagged = motion.view === "front" ? pose : poseAt(motion, t - FOREARM_LAG);
+  return { ...pose, faR: lagged.faR, faL: lagged.faL, head: head.head ?? head.chest ?? head.torso };
+}
+
+type Sim = { t: number; tip: Pt | null; vel: Pt };
+
 export default function Figure({ motion, gender, paused, speed = 1, className, title, frame }: Props) {
   const ref = useRef<SVGSVGElement>(null);
-  const [t, setT] = useState(0);
+  const [state, setState] = useState<{ t: number; tip: Pt | null }>({ t: 0, tip: null });
+  const sim = useRef<Sim>({ t: 0, tip: null, vel: { x: 0, y: 0 } });
   const [visible, setVisible] = useState(false);
   const reduced = useSyncExternalStore(subscribeReducedMotion, () => window.matchMedia(REDUCED).matches, () => false);
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+
+  const view = motion.view ?? "side";
+  const box = useMemo(() => frameBox(motion), [motion]);
+  const lagArms = useMemo(() => !handsBearWeight(motion), [motion]);
 
   useEffect(() => {
     const el = ref.current;
@@ -48,30 +65,108 @@ export default function Figure({ motion, gender, paused, speed = 1, className, t
     let raf = 0;
     let last = performance.now();
     const factor = reduced ? 0.5 * speed : speed;
+    const female = gender === "female";
     const tick = (now: number) => {
-      setT((prev) => prev + (now - last) * factor);
+      const dtMs = Math.min(50, now - last) * factor;
       last = now;
+      const s = sim.current;
+      s.t += dtMs;
+      if (female && view === "side") {
+        // Ponytail: a damped spring pulled toward its resting hang, constrained to its length.
+        const sk = solve(livePose(motion, s.t, lagArms), view, motion.anchor, motion.anchorX);
+        const { tie, rest } = ponytailRest(sk);
+        const dt = dtMs / 1000;
+        if (!s.tip) s.tip = rest;
+        const k = 160;
+        const damp = 9;
+        s.vel = {
+          x: s.vel.x + (k * (rest.x - s.tip.x) - damp * s.vel.x) * dt,
+          y: s.vel.y + (k * (rest.y - s.tip.y) - damp * s.vel.y) * dt,
+        };
+        let tip = { x: s.tip.x + s.vel.x * dt, y: s.tip.y + s.vel.y * dt };
+        const dx = tip.x - tie.x;
+        const dy = tip.y - tie.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const clamped = Math.min(15.5, Math.max(10, dist));
+        tip = clampAboveFloor({ x: tie.x + (dx / dist) * clamped, y: tie.y + (dy / dist) * clamped });
+        s.tip = tip;
+      } else {
+        s.tip = null;
+      }
+      setState({ t: s.t, tip: s.tip });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [animate, speed, reduced]);
+  }, [animate, speed, reduced, motion, gender, view, lagArms]);
 
-  const view = motion.view ?? "side";
-  const box = useMemo(() => frameBox(motion), [motion]);
-  const pose: Pose = frame !== undefined ? motion.frames[frame % motion.frames.length].pose : poseAt(motion, t);
+  const isStatic = frame !== undefined;
+  const pose: Pose = isStatic ? motion.frames[frame % motion.frames.length].pose : livePose(motion, state.t, lagArms);
   const sk = solve(pose, view, motion.anchor, motion.anchorX);
+  const tip = gender === "female" && view === "side" ? (isStatic || !state.tip ? ponytailRest(sk).rest : state.tip) : null;
+  const breath = isStatic ? 0 : 0.035 * Math.sin((2 * Math.PI * state.t) / 3600);
+  const shapes = buildBody(sk, { gender, view, breath, tailTip: tip });
 
   return (
-    <svg
-      ref={ref}
-      viewBox={box.join(" ")}
-      className={className}
-      role="img"
-      aria-label={title ?? "Animated exercise demonstration"}
-    >
-      <Scene sk={sk} gender={gender} motion={motion} view={view} lift={pose.lift ?? 0} box={box} />
+    <svg ref={ref} viewBox={box.join(" ")} className={className} role="img" aria-label={title ?? "Animated exercise demonstration"}>
+      <defs>
+        <filter id={`soft${uid}`} x="-50%" y="-200%" width="200%" height="500%">
+          <feGaussianBlur stdDeviation="2.4" />
+        </filter>
+        <linearGradient id={`wall${uid}`} x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.03" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0.08" />
+        </linearGradient>
+      </defs>
+      <Floor sk={sk} motion={motion} box={box} lift={pose.lift ?? 0} uid={uid} />
+      {shapes.map((s, i) =>
+        s.grad ? (
+          <g key={i}>
+            <linearGradient id={`g${uid}-${i}`} gradientUnits="userSpaceOnUse" x1={s.grad.x1} y1={s.grad.y1} x2={s.grad.x2} y2={s.grad.y2}>
+              {s.grad.stops.map(([o, c]) => (
+                <stop key={o} offset={o} stopColor={c} />
+              ))}
+            </linearGradient>
+            <path d={s.d} fill={`url(#g${uid}-${i})`} opacity={s.opacity} />
+          </g>
+        ) : (
+          <path key={i} d={s.d} fill={s.fill} opacity={s.opacity} stroke={s.stroke} strokeWidth={s.strokeWidth} strokeLinecap="round" />
+        ),
+      )}
     </svg>
+  );
+}
+
+function Floor({ sk, motion, box, lift, uid }: { sk: Skeleton; motion: Motion; box: number[]; lift: number; uid: string }) {
+  // Contact shadow spans whatever touches (or nearly touches) the floor.
+  const pts: Pt[] = [sk.ankleR, sk.toeR, sk.ankleL, sk.toeL, sk.kneeR, sk.kneeL, sk.handR, sk.handL, sk.hip, sk.shoulder, sk.mid, sk.head];
+  const near = pts.filter((p) => p.y > GROUND - 14);
+  const minX = near.length ? Math.min(...near.map((p) => p.x)) - 9 : sk.hip.x - 14;
+  const maxX = near.length ? Math.max(...near.map((p) => p.x)) + 9 : sk.hip.x + 14;
+  const fade = Math.max(0.25, 1 - lift / 30);
+  return (
+    <g>
+      {(motion.props ?? []).map((pr, i) =>
+        pr.type === "wall" ? (
+          <g key={i}>
+            <rect x={box[0] - 10} y={box[1] - 10} width={pr.x - box[0] + 10} height={GROUND - box[1] + 11} fill={`url(#wall${uid})`} />
+            <line x1={pr.x} y1={box[1] - 10} x2={pr.x} y2={GROUND + 1} stroke="#fff" strokeOpacity={0.12} strokeWidth={1} />
+          </g>
+        ) : (
+          <rect key={i} x={box[0] + 10} y={GROUND - 2} width={box[2] - 20} height={5} rx={2.5} fill="#fff" fillOpacity={0.1} />
+        ),
+      )}
+      <line x1={box[0] + 6} y1={GROUND + 1} x2={box[0] + box[2] - 6} y2={GROUND + 1} stroke="#fff" strokeOpacity={0.14} strokeWidth={1.2} strokeLinecap="round" />
+      <ellipse
+        cx={(minX + maxX) / 2}
+        cy={GROUND + 1.5}
+        rx={((maxX - minX) / 2) * (lift > 0 ? Math.max(0.5, 1 - lift / 40) : 1)}
+        ry={3}
+        fill="#000"
+        opacity={0.55 * fade}
+        filter={`url(#soft${uid})`}
+      />
+    </g>
   );
 }
 
@@ -83,7 +178,7 @@ function frameBox(motion: Motion): [number, number, number, number] {
     const sk = solve(f.pose, view, motion.anchor, motion.anchorX);
     for (const [k, pt] of Object.entries(sk)) {
       if (k === "headDir") continue;
-      const r = k === "head" ? L.headR + 3 : 6;
+      const r = k === "head" ? L.headR + 4 : 8;
       minX = Math.min(minX, pt.x - r);
       maxX = Math.max(maxX, pt.x + r);
       minY = Math.min(minY, pt.y - r);
@@ -95,138 +190,3 @@ function frameBox(motion: Motion): [number, number, number, number] {
   return [round(cx - size / 2), round(bottom - size), round(size), round(size)];
 }
 const round = (n: number) => Math.round(n * 10) / 10;
-
-function Scene({ sk, gender, motion, view, lift, box }: { sk: Skeleton; gender: Gender; motion: Motion; view: "side" | "front"; lift: number; box: number[] }) {
-  const c = PALETTE[gender];
-  const female = gender === "female";
-  const props = motion.props ?? [];
-  const shadowW = Math.max(18, 46 - lift * 0.9);
-
-  const seg = (a: Pt, b: Pt, w: number, color: string, key?: string) => (
-    <line key={key} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={color} strokeWidth={w} strokeLinecap="round" />
-  );
-  const part = (a: Pt, b: Pt, f: number): Pt => ({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f });
-
-  const arm = (shoulder: Pt, elbow: Pt, hand: Pt, far: boolean) => (
-    <g opacity={far ? 0.55 : 1}>
-      {seg(shoulder, elbow, 8.5, c.skin)}
-      {seg(elbow, hand, 7.4, c.skin)}
-      <circle cx={hand.x} cy={hand.y} r={4.3} fill={c.skin} />
-      {/* sleeve */}
-      {!female && seg(shoulder, part(shoulder, elbow, 0.42), 10.5, far ? c.topDark : c.top)}
-    </g>
-  );
-
-  const leg = (hip: Pt, knee: Pt, ankle: Pt, toe: Pt, far: boolean) => (
-    <g opacity={far ? 0.55 : 1}>
-      {seg(hip, knee, 13, female ? c.bottom : c.skin)}
-      {seg(knee, ankle, 10.5, female ? c.bottom : c.skin)}
-      {!female && seg(hip, part(hip, knee, 0.62), 14.5, c.bottom)}
-      {seg(ankle, toe, 7.5, c.shoe)}
-      {view === "side" && seg(part(ankle, toe, 0.15), toe, 2.2, c.sole)}
-    </g>
-  );
-
-  const torso = (
-    <g>
-      {seg(sk.hip, sk.mid, female ? 15.5 : 16, female ? c.bottom : c.top)}
-      {seg(sk.mid, sk.shoulder, female ? 15 : 17.5, c.top)}
-      {view === "front" && seg(sk.shoulderR, sk.shoulderL, 12, c.top)}
-      {view === "front" && seg(sk.hipR, sk.hipL, 13, c.bottom)}
-      {seg(sk.shoulder, sk.neck, 6, c.skin)}
-    </g>
-  );
-
-  const head = <Head sk={sk} c={c} female={female} view={view} />;
-
-  return (
-    <g>
-      {props.map((pr, i) =>
-        pr.type === "wall" ? (
-          <rect key={i} x={box[0] - 10} y={box[1] - 10} width={pr.x - box[0] + 10} height={GROUND - box[1] + 10} className="fill-white/5" />
-        ) : (
-          <rect key={i} x={box[0] + 10} y={GROUND - 2} width={box[2] - 20} height={5} rx={2.5} className="fill-white/10" />
-        ),
-      )}
-      <line x1={box[0] + 6} y1={GROUND + 1} x2={box[0] + box[2] - 6} y2={GROUND + 1} className="stroke-white/15" strokeWidth={1.2} strokeLinecap="round" />
-      <ellipse cx={(sk.hip.x + sk.shoulder.x) / 2} cy={GROUND + 2} rx={shadowW} ry={3.2} className="fill-black/35" />
-      {view === "side" ? (
-        <>
-          {arm(sk.shoulderL, sk.elbowL, sk.handL, true)}
-          {leg(sk.hipL, sk.kneeL, sk.ankleL, sk.toeL, true)}
-          {torso}
-          {leg(sk.hipR, sk.kneeR, sk.ankleR, sk.toeR, false)}
-          {head}
-          {arm(sk.shoulderR, sk.elbowR, sk.handR, false)}
-        </>
-      ) : (
-        <>
-          {leg(sk.hipR, sk.kneeR, sk.ankleR, sk.toeR, false)}
-          {leg(sk.hipL, sk.kneeL, sk.ankleL, sk.toeL, false)}
-          {torso}
-          {head}
-          {arm(sk.shoulderR, sk.elbowR, sk.handR, false)}
-          {arm(sk.shoulderL, sk.elbowL, sk.handL, false)}
-        </>
-      )}
-    </g>
-  );
-}
-
-function Head({ sk, c, female, view }: { sk: Skeleton; c: (typeof PALETTE)["male"]; female: boolean; view: "side" | "front" }) {
-  const r = L.headR;
-  const d = sk.headDir; // points from neck to crown
-  const crown = { x: d.x, y: d.y };
-  const face = { x: -crown.y, y: crown.x }; // rotate crown -90deg => facing direction (right when upright)
-  const at = (phi: number, rr: number): Pt => {
-    const a = (phi * Math.PI) / 180;
-    return {
-      x: sk.head.x + rr * (crown.x * Math.cos(a) + face.x * Math.sin(a)),
-      y: sk.head.y + rr * (crown.y * Math.cos(a) + face.y * Math.sin(a)),
-    };
-  };
-
-  if (view === "front") {
-    const h1 = { x: sk.head.x - r - 0.8, y: sk.head.y + 1 };
-    const h2 = { x: sk.head.x + r + 0.8, y: sk.head.y + 1 };
-    return (
-      <g>
-        {female && <circle cx={sk.head.x} cy={sk.head.y - r - 2} r={4.5} fill={c.hair} />}
-        <circle cx={sk.head.x} cy={sk.head.y} r={r} fill={c.skin} />
-        <path d={`M ${h1.x} ${h1.y} A ${r + 0.8} ${r + 0.8} 0 0 1 ${h2.x} ${h2.y} Q ${sk.head.x} ${sk.head.y - r * 0.35} ${h1.x} ${h1.y} Z`} fill={c.hair} />
-        <circle cx={sk.head.x - 3.2} cy={sk.head.y + 1} r={1.05} fill="#1b1b22" />
-        <circle cx={sk.head.x + 3.2} cy={sk.head.y + 1} r={1.05} fill="#1b1b22" />
-        <path d={`M ${sk.head.x - 2.2} ${sk.head.y + 4.6} Q ${sk.head.x} ${sk.head.y + 5.8} ${sk.head.x + 2.2} ${sk.head.y + 4.6}`} stroke="#1b1b22" strokeWidth={0.8} fill="none" strokeLinecap="round" />
-      </g>
-    );
-  }
-
-  const front = at(62, r + 0.9);
-  const back = at(-118, r + 0.9);
-  const inner = at(-20, r * 0.3);
-  const eye = at(70, r * 0.55);
-  const tieBase = at(-95, r * 0.95);
-  const tailEnd = { x: tieBase.x - face.x * 9, y: tieBase.y + 13 };
-  const tailCtrl = { x: tieBase.x - face.x * 12, y: tieBase.y + 2 };
-
-  return (
-    <g>
-      {female && (
-        <path
-          d={`M ${tieBase.x} ${tieBase.y} Q ${tailCtrl.x} ${tailCtrl.y} ${tailEnd.x} ${tailEnd.y}`}
-          stroke={c.hair}
-          strokeWidth={5.5}
-          strokeLinecap="round"
-          fill="none"
-        />
-      )}
-      <circle cx={sk.head.x} cy={sk.head.y} r={r} fill={c.skin} />
-      <path
-        d={`M ${front.x} ${front.y} A ${r + 0.9} ${r + 0.9} 0 ${female ? 1 : 0} 0 ${back.x} ${back.y} Q ${inner.x} ${inner.y} ${front.x} ${front.y} Z`}
-        fill={c.hair}
-      />
-      {female && <circle cx={tieBase.x} cy={tieBase.y} r={2.4} fill={c.top} />}
-      <circle cx={eye.x} cy={eye.y} r={1.1} fill="#1b1b22" />
-    </g>
-  );
-}

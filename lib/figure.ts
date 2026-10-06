@@ -35,6 +35,8 @@ export type Motion = {
   anchorX?: number;
   view?: "side" | "front";
   props?: Prop[];
+  /** Rhythmic, cyclic moves (circles, running) flow through keyframes without stopping. */
+  continuous?: boolean;
 };
 
 export const kf = (pose: Pose, move = 700, hold = 0): Keyframe => ({ pose, move, hold });
@@ -95,11 +97,13 @@ export function solve(pose: Pose, view: "side" | "front" = "side", anchor: Ancho
   const hip = { x: 0, y: 0 };
   const mid = add(hip, pose.torso, L.pelvis);
   const shoulder = add(mid, chest, L.chest);
-  const neck = add(shoulder, headA, L.neck);
+  // Face-on, the whole neck is visible and the arm sockets sit just below the top of the shoulders.
+  const neck = add(shoulder, headA, view === "front" ? L.neck + 3 : L.neck);
+  const sd = view === "front" ? 2.5 : 0;
   const head = add(neck, headA, L.headR);
   // R is the figure's right side: on screen it sits on the viewer's left in front view.
-  const shoulderR = { x: shoulder.x - sw, y: shoulder.y };
-  const shoulderL = { x: shoulder.x + sw, y: shoulder.y };
+  const shoulderR = { x: shoulder.x - sw, y: shoulder.y + sd };
+  const shoulderL = { x: shoulder.x + sw, y: shoulder.y + sd };
   const hipR = { x: hip.x - hw, y: hip.y };
   const hipL = { x: hip.x + hw, y: hip.y };
   const elbowR = add(shoulderR, pose.uaR, L.upperArm);
@@ -147,18 +151,47 @@ const POSE_KEYS: (keyof Pose)[] = [
   "torso", "chest", "head", "uaR", "faR", "uaL", "faL", "thR", "shR", "thL", "shL", "ftR", "ftL", "lift",
 ];
 
-const easeInOut = (t: number) => 0.5 - Math.cos(Math.PI * t) / 2;
+const valueOf = (p: Pose, k: keyof Pose): number =>
+  p[k] ?? (k === "chest" ? p.torso : k === "head" ? (p.chest ?? p.torso) : k.startsWith("ft") ? 90 : 0);
+
+/** Shortest signed angular difference, so circles and overhead reaches take the natural way round. */
+const angleDelta = (from: number, to: number) => ((((to - from + 180) % 360) + 360) % 360) - 180;
+
+/** Ease in-out with a softer start and finish than a sine, closer to how muscles accelerate a limb. */
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export function lerpPose(a: Pose, b: Pose, t: number): Pose {
   const e = easeInOut(t);
   const out: Record<string, number> = {};
   for (const k of POSE_KEYS) {
-    const av = a[k] ?? (k === "chest" ? a.torso : k === "head" ? (a.chest ?? a.torso) : k.startsWith("ft") ? 90 : 0);
-    const bv = b[k] ?? (k === "chest" ? b.torso : k === "head" ? (b.chest ?? b.torso) : k.startsWith("ft") ? 90 : 0);
-    // Angles take the shortest way round so circles and overhead reaches animate naturally.
-    let delta = bv - av;
-    if (k !== "lift") delta = ((((delta + 180) % 360) + 360) % 360) - 180;
+    const av = valueOf(a, k);
+    const bv = valueOf(b, k);
+    const delta = k === "lift" ? bv - av : angleDelta(av, bv);
     out[k] = av + delta * e;
+  }
+  return out as Pose;
+}
+
+/** Centripetal-free uniform Catmull-Rom between p1 and p2, used for continuous motions. */
+function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+}
+
+function splinePose(p0: Pose, p1: Pose, p2: Pose, p3: Pose, t: number): Pose {
+  const out: Record<string, number> = {};
+  for (const k of POSE_KEYS) {
+    const v1 = valueOf(p1, k);
+    if (k === "lift") {
+      out[k] = Math.max(0, catmull(valueOf(p0, k), v1, valueOf(p2, k), valueOf(p3, k), t));
+      continue;
+    }
+    // Unwrap neighbours around p1 so the spline never spins the long way round.
+    const v0 = v1 + angleDelta(v1, valueOf(p0, k));
+    const v2 = v1 + angleDelta(v1, valueOf(p2, k));
+    const v3 = v2 + angleDelta(v2, valueOf(p3, k));
+    out[k] = catmull(v0, v1, v2, v3, t);
   }
   return out as Pose;
 }
@@ -170,17 +203,33 @@ export function cycleLength(m: Motion) {
 /** Pose at time t (ms) within a looping motion. Frame i holds, then moves to frame i+1. */
 export function poseAt(m: Motion, t: number): Pose {
   const total = cycleLength(m);
-  if (m.frames.length === 1 || total === 0) return m.frames[0].pose;
+  const n = m.frames.length;
+  if (n === 1 || total === 0) return m.frames[0].pose;
   let time = ((t % total) + total) % total;
-  for (let i = 0; i < m.frames.length; i++) {
+  for (let i = 0; i < n; i++) {
     const f = m.frames[i];
-    const next = m.frames[(i + 1) % m.frames.length];
+    const next = m.frames[(i + 1) % n];
     if (time < f.hold) return f.pose;
     time -= f.hold;
-    if (time < f.move) return lerpPose(f.pose, next.pose, time / f.move);
+    if (time < f.move) {
+      const u = time / f.move;
+      if (m.continuous) {
+        return splinePose(m.frames[(i - 1 + n) % n].pose, f.pose, next.pose, m.frames[(i + 2) % n].pose, u);
+      }
+      return lerpPose(f.pose, next.pose, u);
+    }
     time -= f.move;
   }
   return m.frames[0].pose;
+}
+
+/** True when a hand rests on the floor in any keyframe (push-ups, planks), so arms must not lag or drift. */
+export function handsBearWeight(m: Motion) {
+  const view = m.view ?? "side";
+  return m.frames.some((f) => {
+    const sk = solve(f.pose, view, m.anchor, m.anchorX);
+    return sk.handR.y > GROUND - 9 || sk.handL.y > GROUND - 9;
+  });
 }
 
 /* ---------- Pose helpers for authoring ---------- */
