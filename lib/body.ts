@@ -98,8 +98,9 @@ const TORSO_SIDE: Record<Gender, { front: Curve; back: Curve }> = {
 
 /** Front-view half widths along the spine. */
 const TORSO_FRONT: Record<Gender, Curve> = {
-  male: [[-0.24, 6], [-0.14, 11.5], [0.02, 12.2], [0.3, 11.0], [0.5, 10.6], [0.7, 12.4], [0.86, 14.6], [0.98, 14.4], [1.06, 9.5], [1.12, 4.5]],
-  female: [[-0.24, 6], [-0.14, 12.2], [0.02, 13.2], [0.3, 10.8], [0.5, 8.9], [0.7, 10.6], [0.86, 12.2], [0.98, 11.8], [1.06, 8], [1.12, 4]],
+  // Above the shoulder joint (s > 1) the outline slopes up along the trapezius into the neck.
+  male: [[-0.04, 12.0], [0.02, 12.2], [0.3, 11.0], [0.5, 10.6], [0.7, 12.4], [0.86, 14.6], [0.98, 15.0], [1.04, 13.4], [1.09, 9.6], [1.14, 5.6]],
+  female: [[-0.04, 13.0], [0.02, 13.2], [0.3, 10.8], [0.5, 8.9], [0.7, 10.6], [0.86, 12.2], [0.98, 12.4], [1.04, 11.0], [1.09, 7.8], [1.14, 4.6]],
 };
 
 /* ---------------- Palettes ---------------- */
@@ -192,13 +193,14 @@ function limbShapes(
   b: Pt,
   prof: LimbProfile,
   fill: string,
-  opts: { from?: number; to?: number; inflate?: number; shade?: boolean; capStart?: boolean; capEnd?: boolean; symmetric?: boolean } = {},
+  opts: { from?: number; to?: number; inflate?: number; shade?: boolean; capStart?: boolean; capEnd?: boolean; symmetric?: boolean; grad?: Gradient } = {},
 ): Shape[] {
   const { from = 0, to = 1, inflate = 0, shade = true, capStart = true, capEnd = true, symmetric = false } = opts;
   const fr = (s: number) => (symmetric ? (sample(prof.front, s) + sample(prof.back, s)) / 2 : sample(prof.front, s)) + inflate;
   const bk = (s: number) => -((symmetric ? (sample(prof.front, s) + sample(prof.back, s)) / 2 : sample(prof.back, s)) + inflate);
   const d = smoothClosed(capsule(a, b, fr, bk, from, to, capStart, capEnd));
   if (!shade) return [{ d, fill }];
+  if (opts.grad) return [{ d, fill, grad: opts.grad }];
   const mid = (from + to) / 2;
   const axis = minus(b, a);
   const n = frontOf(unit(axis));
@@ -422,6 +424,8 @@ export function buildBody(sk: Skeleton, { gender, view, breath = 0, tailTip = nu
   const female = gender === "female";
   const out: Shape[] = [];
   const push = (...s: Shape[]) => out.push(...s);
+  // Set by torso(); front-view sleeves reuse it so they read as part of the shirt rather than separate pads.
+  let torsoGrad: ((fill: string) => Gradient) | null = null;
 
   const arm = (shoulder: Pt, elbow: Pt, hand: Pt, isFar: boolean) => {
     const skin = isFar ? far(c.skin) : c.skin;
@@ -430,7 +434,9 @@ export function buildBody(sk: Skeleton, { gender, view, breath = 0, tailTip = nu
     push(...limbShapes(elbow, hand, P.forearm, skin, { symmetric: sym }));
     if (!female) {
       // T-shirt sleeve
-      push(...limbShapes(shoulder, elbow, P.upperArm, isFar ? far(c.top) : c.top, { to: 0.45, inflate: 1.1, capEnd: false, symmetric: sym }));
+      const top = isFar ? far(c.top) : c.top;
+      const grad = sym && torsoGrad ? torsoGrad(top) : undefined;
+      push(...limbShapes(shoulder, elbow, P.upperArm, top, { to: 0.45, inflate: 1.1, capEnd: false, symmetric: sym, grad }));
     }
     push(...handShapes(elbow, hand, skin, view));
   };
@@ -469,6 +475,7 @@ export function buildBody(sk: Skeleton, { gender, view, breath = 0, tailTip = nu
     const centerOff = view === "side" ? (front(0.55) - back(0.55)) / 2 : 0;
     const center = plus(sp.point(0.55), times(n, centerOff));
     const half = (front(0.55) + back(0.55)) / 2 + 1;
+    torsoGrad = (fill) => shadeAcross(center, n, half, fill, view === "side" ? 1 : 0.6);
     const slice = (from: number, to: number, fill: string, inflate = 0, shaded = true) =>
       push({
         d: smoothClosed(torsoPoints(sk, (s) => front(s) + inflate, (s) => back(s) + inflate, from, to)),
@@ -476,19 +483,49 @@ export function buildBody(sk: Skeleton, { gender, view, breath = 0, tailTip = nu
         grad: shaded ? shadeAcross(center, n, half, fill, view === "side" ? 1 : 0.6) : undefined,
       });
 
+    // Front view: the pelvis ends in a brief line that runs from each hip down into the crotch,
+    // following the thighs, instead of a rounded block hanging between the legs.
+    const pelvisFront = (fill: string, inflate: number) => {
+      const edge = (s: number, sign: number) => plus(sp.point(s), times(frontOf2(sp.tangent(s)), sign * front(s)));
+      const thigh = (hipJ: Pt, knee: Pt, u: number, across: number) => {
+        const d = minus(knee, hipJ);
+        const w = (sample(P.thigh.front, u) + sample(P.thigh.back, u)) / 2 + inflate;
+        const outward = hipJ.x < sk.hip.x ? -1 : 1;
+        return plus(plus(hipJ, times(d, u)), v(outward * w * across, 0));
+      };
+      const crotch = plus(sk.hip, times(sp.tangent(0), -9));
+      const pts = [
+        edge(0.14, -1), edge(0, -1),
+        thigh(sk.hipR, sk.kneeR, 0.08, 1), thigh(sk.hipR, sk.kneeR, 0.16, 0.2), crotch,
+        thigh(sk.hipL, sk.kneeL, 0.16, 0.2), thigh(sk.hipL, sk.kneeL, 0.08, 1),
+        edge(0, 1), edge(0.14, 1), sp.point(0.14),
+      ];
+      push({ d: smoothClosed(pts), fill, grad: shadeAcross(center, n, half, fill, 0.6) });
+    };
+    const lo = (s: number) => (view === "front" ? 0 : s);
+
     // Neck
     push(...limbShapes(sp.point(0.96), plus(sk.neck, times(minus(sk.head, sk.neck), 0.5)), { front: [[0, P.neck], [1, P.neck * 0.9]], back: [[0, P.neck], [1, P.neck * 0.9]] }, c.skin));
 
-    slice(-0.22, 1.1, c.skin);
+    slice(lo(-0.22), 1.1, c.skin);
     if (female) {
-      slice(-0.23, 0.4, c.bottom, 0.4); // high-waisted leggings
+      if (view === "front") pelvisFront(c.bottom, 0.3);
+      slice(lo(-0.23), 0.4, c.bottom, 0.4); // high-waisted leggings
       slice(0.58, 0.97, c.top, 0.35); // sports bra
       slice(0.36, 0.4, c.bottomShade, 0.45, false); // waistband
     } else {
-      slice(-0.23, 0.2, c.bottom, 0.6); // shorts
-      slice(0.08, 1.06, c.top, 0.5); // t-shirt over the waistband
+      if (view === "front") pelvisFront(c.bottom, 1.4);
+      slice(lo(-0.23), 0.2, c.bottom, 0.6); // shorts
+      slice(0.08, view === "front" ? 1.12 : 1.06, c.top, 0.5); // t-shirt over the waistband
       slice(0.08, 0.12, c.topShade, 0.55, false); // hem
-      if (view === "front") slice(1.0, 1.06, c.topShade, 0.55, false); // collar
+      if (view === "front") {
+        // Crew neckline
+        const side = frontOf2(sp.tangent(1));
+        const a = plus(sp.point(1.12), times(side, -5.2));
+        const b = plus(sp.point(1.12), times(side, 5.2));
+        const dip = sp.point(1.0);
+        push({ d: `M${r1(a.x)} ${r1(a.y)}Q${r1(dip.x)} ${r1(dip.y)} ${r1(b.x)} ${r1(b.y)}Z`, fill: c.skin, stroke: c.topShade, strokeWidth: 1.3 });
+      }
     }
   };
 

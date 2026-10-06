@@ -97,11 +97,13 @@ export function solve(pose: Pose, view: "side" | "front" = "side", anchor: Ancho
   const hip = { x: 0, y: 0 };
   const mid = add(hip, pose.torso, L.pelvis);
   const shoulder = add(mid, chest, L.chest);
-  const neck = add(shoulder, headA, L.neck);
+  // Face-on, the whole neck is visible and the arm sockets sit just below the top of the shoulders.
+  const neck = add(shoulder, headA, view === "front" ? L.neck + 3 : L.neck);
+  const sd = view === "front" ? 2.5 : 0;
   const head = add(neck, headA, L.headR);
   // R is the figure's right side: on screen it sits on the viewer's left in front view.
-  const shoulderR = { x: shoulder.x - sw, y: shoulder.y };
-  const shoulderL = { x: shoulder.x + sw, y: shoulder.y };
+  const shoulderR = { x: shoulder.x - sw, y: shoulder.y + sd };
+  const shoulderL = { x: shoulder.x + sw, y: shoulder.y + sd };
   const hipR = { x: hip.x - hw, y: hip.y };
   const hipL = { x: hip.x + hw, y: hip.y };
   const elbowR = add(shoulderR, pose.uaR, L.upperArm);

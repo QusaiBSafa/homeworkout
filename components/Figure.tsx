@@ -31,8 +31,9 @@ const HEAD_LAG = 45;
 function livePose(motion: Motion, t: number, lagArms: boolean): Pose {
   const pose = poseAt(motion, t);
   if (!lagArms) return pose;
-  const lagged = poseAt(motion, t - FOREARM_LAG);
   const head = poseAt(motion, t - HEAD_LAG);
+  // Seen from the front, lagging forearms read as flapping elbows on straight-arm sweeps.
+  const lagged = motion.view === "front" ? pose : poseAt(motion, t - FOREARM_LAG);
   return { ...pose, faR: lagged.faR, faL: lagged.faL, head: head.head ?? head.chest ?? head.torso };
 }
 

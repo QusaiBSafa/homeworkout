@@ -625,7 +625,7 @@ export const EXERCISES: Exercise[] = [
       frames: [
         kf({ torso: 180, uaR: -6, faR: -3, uaL: 6, faL: 3, thR: -2, shR: 0, thL: 2, shL: 0 }, 220),
         kf({ torso: 180, uaR: -80, faR: -90, uaL: 80, faL: 90, thR: -10, shR: -8, thL: 10, shL: 8, lift: 9 }, 220),
-        kf({ torso: 180, uaR: -155, faR: -168, uaL: 155, faL: 168, thR: -17, shR: -14, thL: 17, shL: 14 }, 220),
+        kf({ torso: 180, uaR: -158, faR: -170, uaL: 158, faL: 170, thR: -17, shR: -14, thL: 17, shL: 14 }, 220),
         kf({ torso: 180, uaR: -80, faR: -90, uaL: 80, faL: 90, thR: -10, shR: -8, thL: 10, shL: 8, lift: 9 }, 220),
       ],
     },
