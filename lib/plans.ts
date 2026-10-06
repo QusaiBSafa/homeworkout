@@ -6,8 +6,8 @@ export const DAY_NAMES: Record<DayKey, string> = {
   mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
 };
 
-type PerLevel<T> = Record<Level, T>;
-const all = <T,>(v: T): PerLevel<T> => ({ beginner: v, intermediate: v, advanced: v });
+export type PerLevel<T> = Record<Level, T>;
+export const all = <T,>(v: T): PerLevel<T> => ({ beginner: v, intermediate: v, advanced: v });
 
 export type Block = {
   title: string;
@@ -23,14 +23,17 @@ export type Block = {
   items: string[];
 };
 
-export type DayPlan = {
-  key: DayKey;
+/** Any guided session the workout player can run: a day of the weekly plan or a standalone program. */
+export type Routine = {
+  key: string;
   title: string;
   focus: string;
-  type: "strength" | "hiit" | "core" | "recovery";
+  type: "strength" | "hiit" | "core" | "recovery" | "posture";
   description: string;
   blocks: Block[];
 };
+
+export type DayPlan = Routine & { key: DayKey; type: "strength" | "hiit" | "core" | "recovery" };
 
 const WARMUP: Block = {
   title: "Warm-up",
@@ -244,7 +247,7 @@ export function buildBlock(block: Block, level: Level, week: number) {
   return { rounds, items, rest: block.rest[level], roundRest: block.roundRest[level] };
 }
 
-export function buildSteps(day: DayPlan, level: Level, week: number): Step[] {
+export function buildSteps(day: Routine, level: Level, week: number): Step[] {
   const steps: Step[] = [];
   for (const block of day.blocks) {
     const b = buildBlock(block, level, week);
@@ -276,7 +279,7 @@ export const SECONDS_PER_REP = 3.5;
 export function stepSeconds(s: Step) {
   if (s.kind === "rest") return s.seconds;
   if (s.measure === "time") return s.amount * (s.perSide ? 2 : 1);
-  return s.amount * SECONDS_PER_REP * (s.perSide ? 2 : 1);
+  return s.amount * (s.exercise.repSeconds ?? SECONDS_PER_REP) * (s.perSide ? 2 : 1);
 }
 
 export function summarize(steps: Step[], weightKg = 70) {

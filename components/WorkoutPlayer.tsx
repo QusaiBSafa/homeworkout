@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Figure from "./Figure";
 import { usePrefs } from "./Prefs";
 import { GenderToggle, LevelPicker } from "./Controls";
-import { buildSteps, DayKey, ExerciseStep, Step, stepSeconds, summarize, WEEK_MAP, WEEK_PHASES } from "@/lib/plans";
+import { buildSteps, ExerciseStep, Step, stepSeconds, summarize, WEEK_PHASES } from "@/lib/plans";
+import { getRoutine } from "@/lib/routines";
 import { saveLocal } from "@/lib/history";
 
 type Phase = "overview" | "countdown" | "active" | "done";
@@ -70,8 +71,9 @@ const describe = (s: ExerciseStep) =>
 
 /* ---------- Player ---------- */
 
-export default function WorkoutPlayer({ dayKey }: { dayKey: DayKey }) {
-  const day = WEEK_MAP[dayKey];
+export default function WorkoutPlayer({ routineKey }: { routineKey: string }) {
+  const day = getRoutine(routineKey)!;
+  const back = day.type === "posture" ? { href: "/posture", label: "Posture" } : { href: "/plan", label: "Plan" };
   const { level, week, gender, voice, set, ready } = usePrefs();
   const steps = useMemo(() => buildSteps(day, level, week), [day, level, week]);
   const plan = useMemo(() => summarize(steps), [steps]);
@@ -116,7 +118,7 @@ export default function WorkoutPlayer({ dayKey }: { dayKey: DayKey }) {
     setSaved("saving");
     saveLocal({
       id: `local-${Date.now()}`,
-      day_key: dayKey,
+      day_key: routineKey,
       title: day.title,
       level,
       week,
@@ -128,11 +130,11 @@ export default function WorkoutPlayer({ dayKey }: { dayKey: DayKey }) {
     fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dayKey, title: day.title, level, week, durationSec, exercisesCompleted: doneSteps.length, kcal }),
+      body: JSON.stringify({ dayKey: routineKey, title: day.title, level, week, durationSec, exercisesCompleted: doneSteps.length, kcal }),
     })
       .then(async (r) => setSaved(r.ok && (await r.json()).db ? "cloud" : "device"))
       .catch(() => setSaved("device"));
-  }, [coach, steps, dayKey, day.title, level, week]);
+  }, [coach, steps, routineKey, day.title, level, week]);
 
   const announce = useCallback(
     (i: number) => {
@@ -254,7 +256,7 @@ export default function WorkoutPlayer({ dayKey }: { dayKey: DayKey }) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-6">
         <div className="flex items-center justify-between">
-          <Link href="/plan" className="text-sm text-muted hover:text-text">← Plan</Link>
+          <Link href={back.href} className="text-sm text-muted hover:text-text">← {back.label}</Link>
           <GenderToggle size="sm" />
         </div>
         <p className="mt-6 text-sm text-muted">Week {week} · {WEEK_PHASES[week - 1].name}</p>

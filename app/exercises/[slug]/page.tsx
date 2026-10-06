@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import ExerciseViewer from "@/components/ExerciseViewer";
 import { CATEGORY_LABEL, CATEGORY_TONE, EXERCISE_MAP, EXERCISES, formatTarget, LEVEL_LABEL, LEVELS } from "@/lib/exercises";
 import { WEEK } from "@/lib/plans";
+import { POSTURE_ROUTINES } from "@/lib/posture";
 
 export function generateStaticParams() {
   return EXERCISES.map((e) => ({ slug: e.slug }));
@@ -27,6 +28,7 @@ export default async function ExercisePage({ params }: PageProps<"/exercises/[sl
   const e = EXERCISE_MAP[slug];
   if (!e) notFound();
   const days = WEEK.filter((d) => d.blocks.some((b) => b.items.includes(e.slug)));
+  const programs = POSTURE_ROUTINES.filter((r) => r.blocks.some((b) => b.items.includes(e.slug)));
 
   const variant = (label: string, text?: string) => {
     if (!text) return null;
@@ -110,6 +112,30 @@ export default async function ExercisePage({ params }: PageProps<"/exercises/[sl
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {variant("Make it easier", e.easier)}
           {variant("Make it harder", e.harder)}
+        </div>
+      )}
+
+      {e.research && (
+        <div className="mt-4 rounded-3xl border border-line bg-surface p-6">
+          <h2 className="font-display text-xl font-bold">What the research says</h2>
+          <p className="mt-2">
+            <span className="mr-2 rounded-full bg-surface-2 px-3 py-1 text-xs font-semibold capitalize">{e.research.level} evidence</span>
+            <span className="text-muted">{e.research.note}</span>
+          </p>
+          <Link href="/posture" className="mt-3 inline-block text-sm font-semibold text-accent hover:underline">More on posture →</Link>
+        </div>
+      )}
+
+      {programs.length > 0 && (
+        <div className="mt-10">
+          <h2 className="font-display text-xl font-bold">In posture routines</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {programs.map((r) => (
+              <Link key={r.key} href={`/workout/${r.key}`} className="rounded-full border border-line px-4 py-2 text-sm hover:border-accent">
+                {r.title}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 

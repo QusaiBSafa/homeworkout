@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureSchema, hasDb, sql } from "@/lib/db";
 import { getUserId } from "@/lib/identity";
-import { DAY_KEYS, DayKey } from "@/lib/plans";
+import { ROUTINE_KEYS } from "@/lib/routines";
 import { LEVELS, Level } from "@/lib/exercises";
 
 export const dynamic = "force-dynamic";
@@ -47,14 +47,14 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const dayKey = body.dayKey as DayKey;
+  const dayKey = body.dayKey as string;
   const level = body.level as Level;
   const title = typeof body.title === "string" ? body.title.slice(0, 80) : "";
   const week = int(body.week, 1, 4);
   const duration = int(body.durationSec, 0, 6 * 3600);
   const exercises = int(body.exercisesCompleted, 0, 500);
   const kcal = int(body.kcal, 0, 5000);
-  if (!DAY_KEYS.includes(dayKey) || !LEVELS.includes(level) || !title || week === null || duration === null || exercises === null || kcal === null) {
+  if (!ROUTINE_KEYS.includes(dayKey) || !LEVELS.includes(level) || !title || week === null || duration === null || exercises === null || kcal === null) {
     return NextResponse.json({ error: "Invalid session" }, { status: 400 });
   }
   const uid = (await getUserId(true))!;

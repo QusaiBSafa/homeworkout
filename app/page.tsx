@@ -62,6 +62,18 @@ export default function Home() {
         </div>
       </section>
 
+      <Link
+        href="/posture"
+        className="mt-14 flex flex-col gap-4 rounded-3xl border border-teal-300/30 bg-teal-300/5 p-6 transition hover:border-teal-300/60 md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-teal-300">New · Posture</p>
+          <h2 className="mt-1 font-display text-2xl font-bold">Text neck or a hunched back?</h2>
+          <p className="mt-1 text-muted">10-minute daily routines built from the exercises that corrected posture in clinical trials.</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">Improve my posture →</span>
+      </Link>
+
       <section className="mt-14 grid gap-4 md:grid-cols-4">
         {PRINCIPLES.map((p, i) => (
           <div key={p.title} className="rounded-3xl border border-line bg-surface p-5">

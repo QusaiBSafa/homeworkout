@@ -5,7 +5,7 @@ export const LEVELS: Level[] = ["beginner", "intermediate", "advanced"];
 
 export const LEVEL_LABEL: Record<Level, string> = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
 
-export type Category = "warmup" | "lower" | "upper" | "core" | "cardio" | "mobility";
+export type Category = "warmup" | "lower" | "upper" | "core" | "cardio" | "mobility" | "posture";
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   warmup: "Warm-up",
@@ -14,6 +14,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   core: "Core",
   cardio: "Cardio",
   mobility: "Stretch & Mobility",
+  posture: "Posture & Neck",
 };
 
 export const CATEGORY_TONE: Record<Category, string> = {
@@ -23,6 +24,7 @@ export const CATEGORY_TONE: Record<Category, string> = {
   core: "text-accent",
   cardio: "text-orange-400",
   mobility: "text-violet",
+  posture: "text-teal-300",
 };
 
 export type Exercise = {
@@ -44,6 +46,10 @@ export type Exercise = {
   mistakes: string[];
   easier?: string;
   harder?: string;
+  /** Seconds one rep takes, for reps with long holds (defaults to a brisk rep). */
+  repSeconds?: number;
+  /** Strength of the evidence behind the exercise and the study it comes from (posture programs). */
+  research?: { level: "strong" | "moderate" | "limited"; note: string };
   motion: Motion;
 };
 
@@ -872,6 +878,443 @@ export const EXERCISES: Exercise[] = [
       frames: [
         kf({ torso: 75, chest: 85, head: 70, uaR: 95, faR: 92, uaL: 97, faL: 93, thR: 75, shR: -90, thL: 75, shL: -90, ftR: -90, ftL: -90 }, 2000),
         kf({ torso: 70, chest: 88, head: 72, uaR: 94, faR: 91, uaL: 96, faL: 92, thR: 72, shR: -90, thL: 72, shL: -90, ftR: -90, ftL: -90 }, 2000),
+      ],
+    },
+  },
+
+  // ---------- Posture & neck ----------
+  {
+    slug: "chin-tuck",
+    name: "Chin Tuck",
+    category: "posture",
+    muscles: ["Deep neck flexors", "Upper back"],
+    difficulty: 1,
+    measure: "reps",
+    repSeconds: 7,
+    target: { beginner: 10, intermediate: 12, advanced: 15 },
+    met: 1.8,
+    summary: "The core exercise for forward head posture. It trains the deep neck muscles that hold your head over your shoulders.",
+    steps: [
+      "Sit or stand tall with your eyes level.",
+      "Glide your head straight back, as if making a double chin.",
+      "Keep your eyes level so your head does not tip down. Hold for 5 seconds.",
+      "Relax forward slowly and repeat.",
+    ],
+    cues: ["Ears over shoulders", "Lengthen the back of your neck"],
+    mistakes: ["Nodding the chin down to the chest instead of gliding back", "Tilting the head up as you tuck"],
+    easier: "Lie on your back and gently press the back of your head into the floor.",
+    harder: "Supine Chin Tuck Head Lift",
+    research: {
+      level: "moderate",
+      note: "Supported as part of mixed strengthening-and-stretching programs: chin tuck training improved posture control in people with neck pain (Falla 2007) and head posture in patients with nerve-root neck pain (Diab & Moustafa 2012, 3 x 12, 4 days a week for 10 weeks).",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 96,
+      props: [{ type: "stool" }],
+      frames: [
+        kf(p({ torso: 178, chest: 172, head: 190, jut: 5, uaR: 8, faR: 42, uaL: 10, faL: 44, thR: 90, shR: 0, thL: 88, shL: 0 }), 900, 500),
+        kf(p({ torso: 180, chest: 180, head: 176, jut: -2.5, uaR: 8, faR: 42, uaL: 10, faL: 44, thR: 90, shR: 0, thL: 88, shL: 0 }), 900, 1600),
+      ],
+    },
+  },
+  {
+    slug: "supine-chin-tuck",
+    name: "Supine Chin Tuck Head Lift",
+    category: "posture",
+    muscles: ["Deep neck flexors"],
+    difficulty: 2,
+    measure: "reps",
+    repSeconds: 7,
+    target: { beginner: 8, intermediate: 10, advanced: 12 },
+    met: 2,
+    summary: "Builds endurance in the deep neck flexors by holding a chin tuck against gravity.",
+    steps: [
+      "Lie on your back with your knees bent and arms by your sides.",
+      "Gently tuck your chin, keeping the back of your head on the floor.",
+      "Keeping the tuck, lift your head about 2 cm and hold for 3 to 5 seconds.",
+      "Lower slowly and relax.",
+    ],
+    cues: ["Keep the chin tucked the whole time", "Keep the front of your neck soft"],
+    mistakes: ["Letting the chin poke forward as the head lifts"],
+    easier: "Chin Tuck lying down, with no head lift.",
+    research: {
+      level: "moderate",
+      note: "Part of the 10-week home program that improved forward head posture in Harman et al. 2005. On its own, a meta-analysis found insufficient evidence that it changes posture (Hussein 2021).",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 118,
+      frames: [
+        kf({ ...supineKneesBent, head: -90 }, 800, 400),
+        kf({ ...supineKneesBent, head: -97, jut: -1.2 }, 600, 200),
+        kf({ ...supineKneesBent, head: -112, jut: -1.2 }, 700, 1500),
+        kf({ ...supineKneesBent, head: -97, jut: -1.2 }, 700, 200),
+      ],
+    },
+  },
+  {
+    slug: "neck-extensor-stretch",
+    name: "Neck Extensor Stretch",
+    category: "posture",
+    muscles: ["Suboccipitals", "Neck extensors"],
+    difficulty: 1,
+    measure: "time",
+    target: { beginner: 30, intermediate: 30, advanced: 30 },
+    met: 1.5,
+    summary: "Releases the small muscles at the base of the skull that tighten when the head juts forward.",
+    steps: [
+      "Sit tall and do a chin tuck.",
+      "Keeping the tuck, gently bow your head forward.",
+      "Let the weight of your head do the work. Don't pull with your hands.",
+      "Breathe slowly and hold.",
+    ],
+    cues: ["Tuck first, then bow", "The stretch should feel gentle"],
+    mistakes: ["Pulling hard on the head"],
+    easier: "Chin Tuck only, without the bow.",
+    research: {
+      level: "moderate",
+      note: "One of the two stretches in the programs that improved forward head posture (Harman 2005; Diab & Moustafa 2012, 30-second holds). Stretching alone does not change posture, so pair it with the strengthening moves.",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 96,
+      props: [{ type: "stool" }],
+      frames: [
+        kf(p({ torso: 180, head: 180, uaR: 8, faR: 42, uaL: 10, faL: 44, thR: 90, shR: 0, thL: 88, shL: 0 }), 1200, 300),
+        kf(p({ torso: 180, head: 146, jut: -1.5, uaR: 8, faR: 42, uaL: 10, faL: 44, thR: 90, shR: 0, thL: 88, shL: 0 }), 1600, 2400),
+      ],
+    },
+  },
+  {
+    slug: "upper-trap-stretch",
+    name: "Upper Trap Stretch",
+    category: "posture",
+    muscles: ["Upper trapezius", "Levator scapulae"],
+    difficulty: 1,
+    measure: "time",
+    perSide: true,
+    target: { beginner: 30, intermediate: 30, advanced: 30 },
+    met: 1.5,
+    summary: "Eases the tight band from your neck to your shoulder that builds up from hunching over screens.",
+    steps: [
+      "Sit or stand tall and let one arm hang, or hold the seat of your chair.",
+      "Tilt your ear toward the opposite shoulder.",
+      "Let the head's weight do the stretch. Turn your nose toward your armpit to stretch the levator too.",
+      "Hold, then switch sides.",
+    ],
+    cues: ["Keep the anchored shoulder down", "Breathe into the stretch"],
+    mistakes: ["Shrugging the stretched shoulder up", "Pulling the head down with your hand"],
+    easier: "Tilt only as far as feels easy.",
+    research: {
+      level: "limited",
+      note: "A common part of upper-crossed posture programs, but it has not been tested in a trial on its own.",
+    },
+    motion: {
+      view: "front",
+      anchor: "hip",
+      frames: [
+        kf(p({ uaR: -6, faR: -4, uaL: 6, faL: 4 }), 1100, 300),
+        kf(p({ head: 156, uaR: -10, faR: -6, uaL: 8, faL: 6 }), 1500, 2600),
+      ],
+    },
+  },
+  {
+    slug: "doorway-pec-stretch",
+    name: "Doorway Chest Stretch",
+    category: "posture",
+    muscles: ["Pectoralis major", "Pectoralis minor", "Front shoulders"],
+    difficulty: 1,
+    measure: "time",
+    perSide: true,
+    target: { beginner: 30, intermediate: 30, advanced: 30 },
+    met: 1.8,
+    summary: "Opens the tight chest muscles that pull the shoulders forward into a rounded posture.",
+    steps: [
+      "Stand in a doorway with your forearm on the frame, elbow at shoulder height and bent to 90 degrees.",
+      "Step through with the same-side foot.",
+      "Turn your chest slightly away until you feel a stretch across the chest.",
+      "Hold, then switch sides.",
+    ],
+    cues: ["Keep your ribs down", "Shoulder blade back and down"],
+    mistakes: ["Arching the lower back", "Letting the shoulder roll forward"],
+    easier: "Place the elbow lower on the frame and take a smaller step.",
+    research: {
+      level: "moderate",
+      note: "The one-arm doorway stretch lengthened the pec minor the most of three stretches tested (Borstad & Ludewig 2006), and is part of the proven posture programs (Diab & Moustafa 2012).",
+    },
+    motion: {
+      anchor: "handR",
+      anchorX: 72,
+      props: [{ type: "post", x: 74 }],
+      frames: [
+        kf(p({ torso: 180, uaR: -90, faR: 180, uaL: 6, faL: 10, thR: 14, shR: 0, thL: -10, shL: 0 }), 1200, 300),
+        kf(p({ torso: 174, chest: 170, head: 176, uaR: -90, faR: 180, uaL: 8, faL: 12, thR: 26, shR: -4, thL: -14, shL: -2 }), 1600, 2400),
+      ],
+    },
+  },
+  {
+    slug: "scapular-w-squeeze",
+    name: "W Squeeze",
+    category: "posture",
+    muscles: ["Middle trapezius", "Lower trapezius", "Rhomboids"],
+    difficulty: 1,
+    measure: "reps",
+    repSeconds: 7,
+    target: { beginner: 10, intermediate: 12, advanced: 15 },
+    met: 2,
+    summary: "Strengthens the muscles between the shoulder blades that pull rounded shoulders back.",
+    steps: [
+      "Stand or sit tall with your elbows bent by your sides and palms facing forward, making a W.",
+      "Draw your shoulder blades back and down, pulling the elbows back.",
+      "Keep your chin gently tucked and hold for 5 seconds.",
+      "Release slowly and repeat.",
+    ],
+    cues: ["Squeeze down and back, not up", "Keep a neutral lower back"],
+    mistakes: ["Shrugging the shoulders", "Poking the chin forward"],
+    easier: "Small squeezes with your arms relaxed by your sides.",
+    harder: "Prone Y Raise",
+    research: {
+      level: "moderate",
+      note: "Shoulder-retractor strengthening is part of the programs that improved head and shoulder posture (Harman 2005; Diab & Moustafa 2012; Lynch 2010).",
+    },
+    motion: {
+      anchor: "footR",
+      frames: [
+        kf(p({ chest: 176, head: 182, jut: 1.5, uaR: 22, faR: 150, uaL: 24, faL: 152 }), 900, 300),
+        kf(p({ chest: 183, head: 179, jut: -1, uaR: -28, faR: 172, uaL: -26, faL: 174 }), 900, 1600),
+      ],
+    },
+  },
+  {
+    slug: "wall-angel",
+    name: "Wall Angel",
+    category: "posture",
+    muscles: ["Lower trapezius", "Middle trapezius", "Upper back"],
+    difficulty: 2,
+    measure: "reps",
+    repSeconds: 5,
+    target: { beginner: 8, intermediate: 10, advanced: 12 },
+    met: 2.3,
+    summary: "Slides your arms up a wall to open the chest and train the shoulder blades to stay back.",
+    steps: [
+      "Stand with your heels a little way from a wall, with your buttocks, upper back and head lightly touching it.",
+      "Bring your arms into a W against the wall, elbows bent.",
+      "Slowly slide your arms up into a Y, keeping them as close to the wall as you can.",
+      "Slide back down to the W and repeat.",
+    ],
+    cues: ["Ribs down, no arching", "Chin gently tucked"],
+    mistakes: ["Arching the lower back to keep the arms on the wall", "Forcing the head or arms back to the wall if your upper back is stiff"],
+    easier: "Use a smaller range, or do it lying on your back on the floor.",
+    research: {
+      level: "limited",
+      note: "Widely used by physiotherapists for shoulder-blade control, but no published randomized trial has tested it yet.",
+    },
+    motion: {
+      view: "front",
+      anchor: "hip",
+      frames: [
+        kf(p({ uaR: -96, faR: -166, uaL: 96, faL: 166 }), 1300, 300),
+        kf(p({ uaR: -148, faR: -160, uaL: 148, faL: 160 }), 1300, 300),
+      ],
+    },
+  },
+  {
+    slug: "prone-cobra",
+    name: "Prone Cobra",
+    category: "posture",
+    muscles: ["Thoracic back extensors", "Lower trapezius", "Rhomboids"],
+    difficulty: 2,
+    measure: "reps",
+    repSeconds: 6,
+    target: { beginner: 8, intermediate: 10, advanced: 12 },
+    met: 2.8,
+    summary: "The key strengthening move for a hunched upper back. It trains the back extensors that hold you upright.",
+    steps: [
+      "Lie face down with your forehead on a folded towel and your arms by your sides, palms down.",
+      "Tuck your chin, then lift your chest a few centimetres off the floor.",
+      "As you lift, turn your thumbs out and draw your shoulder blades back and down. Hold 3 to 5 seconds.",
+      "Lower slowly and repeat.",
+    ],
+    cues: ["Keep looking at the floor", "Lift from your upper back"],
+    mistakes: ["Cranking the head up", "Arching the lower back"],
+    easier: "Lift only your arms and keep your chest down.",
+    research: {
+      level: "moderate",
+      note: "Back-extensor strengthening plus posture training reduced kyphosis in the SHEAF trial (Katzman 2017). A meta-analysis found strengthening works better than stretching (González-Gálvez 2019).",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 104,
+      frames: [
+        kf({ ...prone, head: 92, uaR: -86, faR: -88, uaL: -84, faL: -86 }, 900, 300),
+        kf({ ...prone, chest: 106, head: 105, uaR: -100, faR: -104, uaL: -98, faL: -102 }, 900, 1400),
+      ],
+    },
+  },
+  {
+    slug: "prone-y-raise",
+    name: "Prone Y Raise",
+    category: "posture",
+    muscles: ["Lower trapezius", "Middle trapezius", "Rear shoulders"],
+    difficulty: 2,
+    measure: "reps",
+    repSeconds: 6,
+    target: { beginner: 8, intermediate: 10, advanced: 12 },
+    met: 2.5,
+    summary: "Targets the lower trapezius, the muscle that pulls the shoulder blades down and back into good posture.",
+    steps: [
+      "Lie face down with your forehead on a folded towel and your arms overhead in a Y, thumbs up.",
+      "Set your shoulder blades down and back.",
+      "Lift your arms 2 to 5 cm off the floor and hold for 3 to 5 seconds.",
+      "Lower slowly. For a T, do the same with your arms out to the sides.",
+    ],
+    cues: ["Thumbs point to the ceiling", "Keep your neck long"],
+    mistakes: ["Shrugging the shoulders", "Lifting the head"],
+    easier: "Lift one arm at a time, or make the lift smaller.",
+    research: {
+      level: "moderate",
+      note: "Prone shoulder-blade raises were part of the 8-week corrective program that reduced kyphosis from 47.9° to 36.3° in young men with upper crossed syndrome (Seidi 2020).",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 82,
+      frames: [
+        kf({ ...prone, head: 92 }, 900, 300),
+        kf({ ...prone, chest: 95, head: 95, uaR: 106, faR: 106, uaL: 104, faL: 104 }, 900, 1400),
+      ],
+    },
+  },
+  {
+    slug: "thoracic-extension",
+    name: "Towel Roll Thoracic Extension",
+    category: "posture",
+    muscles: ["Thoracic spine", "Chest"],
+    difficulty: 1,
+    measure: "reps",
+    repSeconds: 6,
+    target: { beginner: 5, intermediate: 6, advanced: 8 },
+    met: 1.8,
+    summary: "Mobilizes the stiff mid-back into extension, the opposite of the hunched position.",
+    steps: [
+      "Lie on your back with a firmly rolled towel across your mid-back, at shoulder-blade level. Knees bent.",
+      "Support your head with your hands and keep your hips on the floor.",
+      "Breathe out and let your upper back extend gently over the roll.",
+      "Return and repeat. Move the roll a little higher or lower for the next set.",
+    ],
+    cues: ["Keep your ribs down", "Always support your head"],
+    mistakes: ["Putting the roll under your lower back or neck"],
+    easier: "Use a thinner towel and keep your arms by your sides.",
+    research: {
+      level: "limited",
+      note: "Used as part of the corrective program in Seidi 2020 (with a foam roller), but not tested on its own.",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 122,
+      props: [{ type: "roll" }],
+      frames: [
+        kf({ ...supineKneesBent, torso: -98, chest: -92, head: -90, uaR: -150, faR: -14, uaL: -148, faL: -12 }, 1200, 300),
+        kf({ ...supineKneesBent, torso: -102, chest: -76, head: -66, uaR: -136, faR: 4, uaL: -134, faL: 6 }, 1400, 1400),
+      ],
+    },
+  },
+  {
+    slug: "cat-camel",
+    name: "Cat-Camel",
+    category: "posture",
+    muscles: ["Spine", "Upper back", "Core"],
+    difficulty: 1,
+    measure: "reps",
+    repSeconds: 5,
+    target: { beginner: 8, intermediate: 10, advanced: 10 },
+    met: 2,
+    summary: "Gently moves each segment of the spine through rounding and arching to free up a stiff back.",
+    steps: [
+      "Start on your hands and knees, hands under your shoulders and knees under your hips.",
+      "Breathe out and round your back up toward the ceiling, letting your head drop.",
+      "Breathe in and let your chest sink as you look slightly forward.",
+      "Move slowly, one segment at a time.",
+    ],
+    cues: ["Spend longer in the chest-opening phase", "Move from the upper back, not just the lower back", "Keep the rounding gentle if you have osteoporosis"],
+    mistakes: ["Hinging only at the lower back or neck", "Rushing"],
+    easier: "Do it seated with your hands on your knees.",
+    research: {
+      level: "limited",
+      note: "A standard mobility exercise in posture programs; it has not been tested on its own.",
+    },
+    motion: {
+      anchor: "knee",
+      anchorX: 72,
+      frames: [
+        kf({ ...quadruped, torso: 118, chest: 84, head: 40 }, 1500, 300),
+        kf({ ...quadruped, torso: 88, chest: 110, head: 128 }, 1500, 500),
+      ],
+    },
+  },
+  {
+    slug: "sphinx",
+    name: "Sphinx",
+    category: "posture",
+    muscles: ["Upper back extensors", "Chest", "Abdominals"],
+    difficulty: 1,
+    measure: "time",
+    target: { beginner: 20, intermediate: 30, advanced: 30 },
+    met: 1.8,
+    summary: "A gentle propped back extension that opens the chest and builds endurance in the upper back.",
+    steps: [
+      "Lie face down, propped on your forearms with your elbows under your shoulders.",
+      "Press your forearms into the floor and lift your chest, drawing your shoulder blades back and down.",
+      "Keep your chin gently tucked and your neck long.",
+      "Breathe into your chest and hold.",
+    ],
+    cues: ["Neck long, eyes on the floor ahead", "Breathe into the chest"],
+    mistakes: ["Sagging between the shoulder blades"],
+    easier: "Put a pillow under your chest.",
+    harder: "Prone Cobra",
+    research: {
+      level: "limited",
+      note: "A common gentle extension exercise in posture programs, with little direct trial evidence.",
+    },
+    motion: {
+      anchor: "hip",
+      anchorX: 90,
+      frames: [
+        kf({ ...prone, torso: 96, chest: 126, head: 116, uaR: 0, faR: 90, uaL: 2, faL: 90 }, 1800, 300),
+        kf({ ...prone, torso: 97, chest: 134, head: 122, uaR: 0, faR: 90, uaL: 2, faL: 90 }, 1800, 300),
+      ],
+    },
+  },
+  {
+    slug: "wall-posture-check",
+    name: "Wall Posture Check",
+    category: "posture",
+    muscles: ["Postural awareness", "Upper back", "Deep neck flexors"],
+    difficulty: 1,
+    measure: "time",
+    target: { beginner: 30, intermediate: 30, advanced: 45 },
+    met: 1.5,
+    summary: "Teaches your body what tall, stacked posture feels like so you can find it again during the day.",
+    steps: [
+      "Stand with your back to a wall, heels a few centimetres away.",
+      "Let your buttocks and upper back touch the wall.",
+      "With a gentle chin tuck, bring the back of your head toward the wall without tilting it back.",
+      "Hold, breathing normally, then step away and keep the position.",
+    ],
+    cues: ["Grow tall through the crown of your head", "Keep your ribs down"],
+    mistakes: ["Tilting the head back to reach the wall", "Forcing your head to touch if it doesn't reach comfortably"],
+    easier: "Put a folded towel between your head and the wall.",
+    research: {
+      level: "limited",
+      note: "Indirect support: adding posture-awareness training made a corrective program more effective in adolescents (Elpeze & Usgu 2022), and posture training was part of the SHEAF program (Katzman 2017).",
+    },
+    motion: {
+      anchor: "footR",
+      anchorX: 104,
+      props: [{ type: "wall", x: 88 }],
+      frames: [
+        kf(p({ torso: 178, chest: 166, head: 192, jut: 5, uaR: 12, faR: 16, uaL: 2, faL: 6 }), 1400, 600),
+        kf(p({ torso: 180, chest: 182, head: 180, jut: -1.5 }), 1400, 2200),
       ],
     },
   },

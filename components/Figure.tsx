@@ -146,16 +146,35 @@ function Floor({ sk, motion, box, lift, uid }: { sk: Skeleton; motion: Motion; b
   const fade = Math.max(0.25, 1 - lift / 30);
   return (
     <g>
-      {(motion.props ?? []).map((pr, i) =>
-        pr.type === "wall" ? (
-          <g key={i}>
-            <rect x={box[0] - 10} y={box[1] - 10} width={pr.x - box[0] + 10} height={GROUND - box[1] + 11} fill={`url(#wall${uid})`} />
-            <line x1={pr.x} y1={box[1] - 10} x2={pr.x} y2={GROUND + 1} stroke="#fff" strokeOpacity={0.12} strokeWidth={1} />
-          </g>
-        ) : (
-          <rect key={i} x={box[0] + 10} y={GROUND - 2} width={box[2] - 20} height={5} rx={2.5} fill="#fff" fillOpacity={0.1} />
-        ),
-      )}
+      {(motion.props ?? []).map((pr, i) => {
+        switch (pr.type) {
+          case "wall":
+            return (
+              <g key={i}>
+                <rect x={box[0] - 10} y={box[1] - 10} width={pr.x - box[0] + 10} height={GROUND - box[1] + 11} fill={`url(#wall${uid})`} />
+                <line x1={pr.x} y1={box[1] - 10} x2={pr.x} y2={GROUND + 1} stroke="#fff" strokeOpacity={0.12} strokeWidth={1} />
+              </g>
+            );
+          case "post":
+            return <rect key={i} x={pr.x} y={box[1] - 10} width={5} height={GROUND - box[1] + 11} rx={1.5} fill="#fff" fillOpacity={0.13} />;
+          case "stool": {
+            const top = Math.round((sk.hip.y + 7) * 10) / 10;
+            return (
+              <g key={i} fill="#fff">
+                <rect x={sk.hip.x - 13} y={top} width={24} height={4} rx={2} fillOpacity={0.18} />
+                <rect x={sk.hip.x - 10} y={top + 4} width={3} height={GROUND - top - 3} fillOpacity={0.12} />
+                <rect x={sk.hip.x + 5} y={top + 4} width={3} height={GROUND - top - 3} fillOpacity={0.12} />
+              </g>
+            );
+          }
+          case "roll": {
+            const r = Math.max(3, (GROUND - (sk.mid.y + 6)) / 2);
+            return <circle key={i} cx={Math.round(sk.mid.x * 10) / 10} cy={Math.round((GROUND - r) * 10) / 10} r={Math.round(r * 10) / 10} fill="#fff" fillOpacity={0.2} />;
+          }
+          default:
+            return <rect key={i} x={box[0] + 10} y={GROUND - 2} width={box[2] - 20} height={5} rx={2.5} fill="#fff" fillOpacity={0.1} />;
+        }
+      })}
       <line x1={box[0] + 6} y1={GROUND + 1} x2={box[0] + box[2] - 6} y2={GROUND + 1} stroke="#fff" strokeOpacity={0.14} strokeWidth={1.2} strokeLinecap="round" />
       <ellipse
         cx={(minX + maxX) / 2}
