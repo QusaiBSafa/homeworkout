@@ -28,7 +28,15 @@ export type Anchor = "footR" | "footL" | "hip" | "handR" | "shoulder" | "knee";
 
 export type Keyframe = { pose: Pose; move: number; hold: number };
 
-export type Prop = { type: "wall"; x: number } | { type: "mat" };
+export type Prop =
+  | { type: "wall"; x: number }
+  | { type: "mat" }
+  /** A stool under the hips, sized to the seat height of the pose. */
+  | { type: "stool" }
+  /** A rolled towel under the mid back. */
+  | { type: "roll" }
+  /** A door frame post at x. */
+  | { type: "post"; x: number };
 
 export type Motion = {
   frames: Keyframe[];

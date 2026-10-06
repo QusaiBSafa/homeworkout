@@ -8,14 +8,14 @@ import { EXERCISE_MAP } from "@/lib/exercises";
 
 const SHOWCASE = ["squat", "push-up", "jumping-jacks", "reverse-lunge", "mountain-climber", "glute-bridge", "burpee", "bird-dog"];
 
-export default function HeroShowcase() {
+export default function HeroShowcase({ items = SHOWCASE }: { items?: string[] }) {
   const { gender } = usePrefs();
   const [i, setI] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setI((n) => (n + 1) % SHOWCASE.length), 4200);
+    const id = setInterval(() => setI((n) => (n + 1) % items.length), 4200);
     return () => clearInterval(id);
-  }, []);
-  const ex = EXERCISE_MAP[SHOWCASE[i]];
+  }, [items.length]);
+  const ex = EXERCISE_MAP[items[i % items.length]];
   return (
     <div className="relative">
       <div className="absolute -inset-6 rounded-[3rem] bg-accent/10 blur-3xl" aria-hidden />
@@ -29,7 +29,7 @@ export default function HeroShowcase() {
         </div>
         <Figure key={ex.slug} motion={ex.motion} gender={gender} className="w-full aspect-square rise" title={`${ex.name} demonstration`} />
         <div className="flex justify-center gap-1.5 pb-5">
-          {SHOWCASE.map((s, n) => (
+          {items.map((s, n) => (
             <button
               key={s}
               aria-label={`Show ${EXERCISE_MAP[s].name}`}

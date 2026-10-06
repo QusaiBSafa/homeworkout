@@ -279,7 +279,7 @@ export const SECONDS_PER_REP = 3.5;
 export function stepSeconds(s: Step) {
   if (s.kind === "rest") return s.seconds;
   if (s.measure === "time") return s.amount * (s.perSide ? 2 : 1);
-  return s.amount * SECONDS_PER_REP * (s.perSide ? 2 : 1);
+  return s.amount * (s.exercise.repSeconds ?? SECONDS_PER_REP) * (s.perSide ? 2 : 1);
 }
 
 export function summarize(steps: Step[], weightKg = 70) {
