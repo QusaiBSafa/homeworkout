@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0e13;
+  --surface: #111821;
+  --surface-2: #17202b;
+  --line: #233041;
+  --text: #eef2f7;
+  --muted: #8d9bb0;
+  --accent: #b8f34a;
+  --accent-ink: #0d1a00;
+  --pink: #ff6b8b;
+  --blue: #4f8cff;
+  --violet: #7b6cff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-pink: var(--pink);
+  --color-blue: var(--blue);
+  --color-violet: var(--violet);
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.stage {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(184, 243, 74, 0.07), transparent 60%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+}
+
+.glow {
+  box-shadow: 0 0 0 1px rgba(184, 243, 74, 0.25), 0 10px 40px -10px rgba(184, 243, 74, 0.35);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 0.5s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+}
