@@ -21,6 +21,7 @@ export type Pose = {
   ftR?: number; // foot direction, default 90 (flat, toes forward)
   ftL?: number;
   lift?: number; // raise the whole body off the ground (jumps)
+  jut?: number; // slide the head forward (+) or back (-) relative to the chest: forward head posture and chin tucks
 };
 
 export type Anchor = "footR" | "footL" | "hip" | "handR" | "shoulder" | "knee";
@@ -98,7 +99,9 @@ export function solve(pose: Pose, view: "side" | "front" = "side", anchor: Ancho
   const mid = add(hip, pose.torso, L.pelvis);
   const shoulder = add(mid, chest, L.chest);
   // Face-on, the whole neck is visible and the arm sockets sit just below the top of the shoulders.
-  const neck = add(shoulder, headA, view === "front" ? L.neck + 3 : L.neck);
+  const jut = add({ x: 0, y: 0 }, chest - 90, pose.jut ?? 0);
+  const neckBase = add(shoulder, headA, view === "front" ? L.neck + 3 : L.neck);
+  const neck = { x: neckBase.x + jut.x, y: neckBase.y + jut.y };
   const sd = view === "front" ? 2.5 : 0;
   const head = add(neck, headA, L.headR);
   // R is the figure's right side: on screen it sits on the viewer's left in front view.
@@ -148,8 +151,11 @@ export function solve(pose: Pose, view: "side" | "front" = "side", anchor: Ancho
 }
 
 const POSE_KEYS: (keyof Pose)[] = [
-  "torso", "chest", "head", "uaR", "faR", "uaL", "faL", "thR", "shR", "thL", "shL", "ftR", "ftL", "lift",
+  "torso", "chest", "head", "uaR", "faR", "uaL", "faL", "thR", "shR", "thL", "shL", "ftR", "ftL", "lift", "jut",
 ];
+
+/** Keys that are distances rather than angles. */
+const LINEAR = new Set<keyof Pose>(["lift", "jut"]);
 
 const valueOf = (p: Pose, k: keyof Pose): number =>
   p[k] ?? (k === "chest" ? p.torso : k === "head" ? (p.chest ?? p.torso) : k.startsWith("ft") ? 90 : 0);
@@ -166,7 +172,7 @@ export function lerpPose(a: Pose, b: Pose, t: number): Pose {
   for (const k of POSE_KEYS) {
     const av = valueOf(a, k);
     const bv = valueOf(b, k);
-    const delta = k === "lift" ? bv - av : angleDelta(av, bv);
+    const delta = LINEAR.has(k) ? bv - av : angleDelta(av, bv);
     out[k] = av + delta * e;
   }
   return out as Pose;
@@ -183,8 +189,9 @@ function splinePose(p0: Pose, p1: Pose, p2: Pose, p3: Pose, t: number): Pose {
   const out: Record<string, number> = {};
   for (const k of POSE_KEYS) {
     const v1 = valueOf(p1, k);
-    if (k === "lift") {
-      out[k] = Math.max(0, catmull(valueOf(p0, k), v1, valueOf(p2, k), valueOf(p3, k), t));
+    if (LINEAR.has(k)) {
+      const value = catmull(valueOf(p0, k), v1, valueOf(p2, k), valueOf(p3, k), t);
+      out[k] = k === "lift" ? Math.max(0, value) : value;
       continue;
     }
     // Unwrap neighbours around p1 so the spline never spins the long way round.
